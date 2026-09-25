@@ -8,6 +8,7 @@ from ui.score_trend import ScoreTrendWidget
 from services.score_trend import TrendPoint
 
 from datetime import datetime
+from html import escape
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -22,6 +23,7 @@ from PySide6.QtWidgets import (
 
 from models import Match, STATUS_FINISHED, STATUS_LIVE, STATUS_UPCOMING
 from services.storage import FavoritesStore
+from services.h2h import H2HReport
 from ui.score_strip import ScoreStrip
 from ui.widgets import (
     countdown_text,
@@ -131,6 +133,14 @@ class MatchDetailPage(QWidget):
         self.current_label.setObjectName("AccentText")
         self.current_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(self.current_label)
+        self.h2h_container = QFrame()
+        self.h2h_container.setObjectName("H2HPanel")
+        self.h2h_container.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.h2h_box = QVBoxLayout(self.h2h_container)
+        self.h2h_box.setContentsMargins(18, 18, 18, 18)
+        self.h2h_box.setSpacing(10)
+        card_layout.addWidget(self.h2h_container)
+        self.h2h_container.hide()
         self.trend_heading = QLabel("得分走势")
         self.trend_heading.setObjectName("ScoreHeading")
         card_layout.addWidget(self.trend_heading)
@@ -171,6 +181,7 @@ class MatchDetailPage(QWidget):
         self.player_b_raw.setText(match.player_b_raw or "")
         self.player_b_raw.setVisible(bool(match.player_b_raw))
         trend_available = not match.has_games and bool(match.sets or match.current_set or match.score_events)
+        self.h2h_container.setVisible(match.status == STATUS_UPCOMING)
         self.trend_heading.setVisible(trend_available)
         self.trend_chart.setVisible(trend_available)
         self.trend_note.setVisible(trend_available or match.has_games)
@@ -224,6 +235,59 @@ class MatchDetailPage(QWidget):
             style = label.style()
             style.unpolish(label)
             style.polish(label)
+
+    def set_h2h_report(self, report: H2HReport) -> None:
+        """Render the verified sample only; an empty sample is not a 0:0 career record."""
+        while self.h2h_box.count():
+            item = self.h2h_box.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        if not self._match or self._match.status != STATUS_UPCOMING:
+            self.h2h_container.hide()
+            return
+        self.h2h_container.show()
+        title = QLabel("历史交手 · 已核实赛果")
+        title.setObjectName("H2HHeading")
+        self.h2h_box.addWidget(title)
+        if not report.eligible:
+            self._h2h_label("个人交手统计仅适用于已确认身份的单打对阵。", "H2HMuted")
+            return
+        if not report.meetings:
+            self._h2h_label("暂无可核实的交手记录；这不代表双方此前从未交手。", "H2HMuted")
+            self._h2h_label("统计范围：当前已加载的官方赛事结果及本程序收录的大赛决赛。", "H2HMuted")
+            return
+        self._h2h_label(
+            f"已核实 {len(report.meetings)} 场   {report.wins_a} 胜 : {report.wins_b} 胜",
+            "H2HScore")
+        self._h2h_label(
+            f"局数合计  {report.sets_a} : {report.sets_b}  ·  左侧为{escape(self._match.player_a)}",
+            "H2HMuted")
+        self._h2h_label("最近 5 场", "H2HSubheading")
+        for row in report.meetings[:5]:
+            winner = self._match.player_a if row.winner == 0 else self._match.player_b
+            label = QLabel(
+                f"{row.date:%Y-%m-%d}  ·  {escape(row.competition)}<br>"
+                f"<b>{escape(winner)}胜</b>  {row.sets_a} : {row.sets_b}")
+            label.setObjectName("H2HRow")
+            label.setWordWrap(True)
+            self.h2h_box.addWidget(label)
+        self._h2h_label("按赛事统计", "H2HSubheading")
+        for item in report.competitions:
+            label = QLabel(
+                f"{escape(item.name)}  ·  {item.meetings} 场  ·  "
+                f"胜场 {item.wins_a}:{item.wins_b}  ·  局数 {item.sets_a}:{item.sets_b}")
+            label.setObjectName("H2HRow")
+            label.setWordWrap(True)
+            self.h2h_box.addWidget(label)
+        self._h2h_label(
+            "仅统计当前已加载、身份与比分均可核实的单打结果；不是完整职业生涯交手记录。",
+            "H2HMuted")
+
+    def _h2h_label(self, text: str, object_name: str) -> None:
+        label = QLabel(text)
+        label.setObjectName(object_name)
+        label.setWordWrap(True)
+        self.h2h_box.addWidget(label)
 
     def set_trend_points(self, points: list[TrendPoint]) -> None:
         self.trend_chart.set_points(points)

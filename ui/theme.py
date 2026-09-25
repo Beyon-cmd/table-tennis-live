@@ -120,6 +120,13 @@ QLabel#ScoreCurrent { background: $LIVE_BG; color: $LIVE_TEXT; font-weight: 700;
 QLabel#MatchTime { font-size: 22px; font-weight: 700; color: $ACCENT; }
 QLabel#SetScore { color: $TEXT_SEC; font-size: 13px; }
 QLabel#DetailSet { color: $TEXT_SEC; font-size: 15px; }
+QFrame#H2HPanel { background: $WINDOW_ALT; border: 1px solid $BORDER; border-radius: 14px; }
+QLabel#H2HHeading { color: $TEXT; font-size: 19px; font-weight: 700; }
+QLabel#H2HScore { color: $ACCENT; font-size: 26px; font-weight: 700; }
+QLabel#H2HSubheading { color: $TEXT; font-size: 15px; font-weight: 700; padding-top: 8px; }
+QLabel#H2HRow { color: $TEXT; background: $CARD; border: 1px solid $BORDER;
+    border-radius: 9px; padding: 9px 11px; font-size: 13px; }
+QLabel#H2HMuted { color: $TEXT_SEC; font-size: 12px; }
 QLabel#Meta { color: $TEXT_SEC; font-size: 12px; }
 QLabel#EmptyText { color: $TEXT_SEC; font-size: 14px; }
 QLabel#BadgeLive { background: $LIVE_BG; color: $LIVE_TEXT; border-radius: 9px;
