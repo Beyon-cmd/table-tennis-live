@@ -1,0 +1,6 @@
+# Reproducible Windows x64 installer build with Python 3.12.
+PySide6==6.8.3
+PyInstaller==6.16.0
+httpx==0.28.1
+brotli==1.2.0
+socksio==1.0.0

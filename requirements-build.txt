@@ -1,0 +1,2 @@
+# 仅打包 Windows exe 时使用（运行时不需要）
+pyinstaller>=6.0

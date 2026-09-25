@@ -1,0 +1,8 @@
+# Table Tennis Live
+PySide6>=6.5
+httpx>=0.27
+brotli>=1.1
+socksio>=1.0
+
+# 说明：httpx 用于请求官方公开数据；brotli 用于解压 WTT 官网的 br 编码数据；
+# socksio 让 httpx 在系统配置 SOCKS 代理时也能正常工作。

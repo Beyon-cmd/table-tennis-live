@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+data/
+build/
+dist/
+*.spec
+.venv*/
+.build-deps/
+.inno-compiler/
+release/
+*.exe
+*.log
+.env
+.env.*
+*.pem
+*.key
+/*_rgb.png
+/_majors_section_debug.png
+/X ui.match_card
