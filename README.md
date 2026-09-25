@@ -4,6 +4,8 @@ Windows 桌面端乒乓球实时比分客户端，MSN / Microsoft Start 风格�
 
 当前版本：1.7.1，包含现代化浅色/深色界面、平滑滚动、页面过渡、官方比分、得分走势、男单/女单世界排名、WTT 与亚运会赛事签表、三大赛分类决赛档案、按需加载的选手资料，以及亚运会乒乓球实时赛程。
 
+Windows x64 用户可从 [GitHub Releases 下载最新安装包](https://github.com/Beyon-cmd/table-tennis-live/releases/latest)，无需安装 Python。源码位于本仓库；请勿将 `release/`、虚拟环境或个人设置提交到 Git。
+
 ## 运行
 
 ```powershell
