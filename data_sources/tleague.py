@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from data_sources.base import DataSource, make_client
 from data_sources.name_map import to_chinese_name, to_chinese_team
@@ -100,7 +100,9 @@ class TLeagueDataSource(DataSource):
                 continue
             year, month, day, hour, minute = (int(x) for x in date_m.groups())
             try:
-                start = datetime(year, month, day, hour, minute)
+                # The league website publishes Japan Standard Time.
+                jst = timezone(timedelta(hours=9))
+                start = datetime(year, month, day, hour, minute, tzinfo=jst).astimezone().replace(tzinfo=None)
             except ValueError:
                 continue
             gender_m = re.search(r">(男子|女子)<", row)

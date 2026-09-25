@@ -45,7 +45,7 @@ class JsonStore:
 
 class SettingsStore(JsonStore):
     def __init__(self):
-        super().__init__(DATA_DIR / "settings.json", {"theme": "system"})
+        super().__init__(DATA_DIR / "settings.json", {"theme": "system", "alerts": {}})
 
     @property
     def theme(self) -> str:
@@ -53,6 +53,19 @@ class SettingsStore(JsonStore):
 
     def set_theme(self, mode: str) -> None:
         self._data["theme"] = mode
+        self.save()
+
+    def alert_enabled(self, kind: str) -> bool:
+        alerts = self._data.get("alerts")
+        return bool(alerts.get(kind)) if isinstance(alerts, dict) else False
+
+    def set_alert(self, kind: str, enabled: bool) -> None:
+        if kind not in {"start", "score", "final"}:
+            raise ValueError("未知提醒类别")
+        alerts = self._data.setdefault("alerts", {})
+        if not isinstance(alerts, dict):
+            alerts = self._data["alerts"] = {}
+        alerts[kind] = bool(enabled)
         self.save()
 
 

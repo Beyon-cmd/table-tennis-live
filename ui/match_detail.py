@@ -6,6 +6,7 @@ from data_sources.player_profiles import PlayerRequest, request_from_match
 from ui.motion import SmoothScrollArea
 from ui.score_trend import ScoreTrendWidget
 from services.score_trend import TrendPoint
+from services.calendar_export import time_labels
 
 from datetime import datetime
 
@@ -35,6 +36,7 @@ class MatchDetailPage(QWidget):
     back_requested = Signal()
     favorite_toggled = Signal(str, bool)
     player_clicked = Signal(object)
+    calendar_requested = Signal(object)
 
     def __init__(self, favorites: FavoritesStore, parent=None):
         super().__init__(parent)
@@ -57,11 +59,15 @@ class MatchDetailPage(QWidget):
         self.star = QPushButton()
         self.star.setObjectName("StarButton")
         self.star.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.calendar_button = QPushButton("加入日历")
+        self.calendar_button.setObjectName("RankingButton")
+        self.calendar_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.badge = QLabel()
         self.badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         header.addWidget(self.back)
         header.addWidget(self.competition, 1)
         header.addWidget(self.star)
+        header.addWidget(self.calendar_button)
         header.addWidget(self.badge)
         root.addLayout(header)
 
@@ -131,6 +137,11 @@ class MatchDetailPage(QWidget):
         self.current_label.setObjectName("AccentText")
         self.current_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(self.current_label)
+        self.time_note = QLabel()
+        self.time_note.setObjectName("Meta")
+        self.time_note.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.time_note.setWordWrap(True)
+        card_layout.addWidget(self.time_note)
         self.trend_heading = QLabel("得分走势")
         self.trend_heading.setObjectName("ScoreHeading")
         card_layout.addWidget(self.trend_heading)
@@ -147,6 +158,7 @@ class MatchDetailPage(QWidget):
 
         self.back.clicked.connect(self.back_requested)
         self.star.clicked.connect(self._on_star_clicked)
+        self.calendar_button.clicked.connect(lambda: self.calendar_requested.emit(self._match))
         self.player_a.clicked.connect(lambda: self.player_clicked.emit(request_from_match(self._match, 0)))
         self.player_b.clicked.connect(lambda: self.player_clicked.emit(request_from_match(self._match, 1)))
 
@@ -170,6 +182,9 @@ class MatchDetailPage(QWidget):
         self.player_a_raw.setVisible(bool(match.player_a_raw))
         self.player_b_raw.setText(match.player_b_raw or "")
         self.player_b_raw.setVisible(bool(match.player_b_raw))
+        self.calendar_button.setVisible(match.status == STATUS_UPCOMING)
+        self.time_note.setText(time_labels(match) if match.status == STATUS_UPCOMING else "")
+        self.time_note.setVisible(match.status == STATUS_UPCOMING)
         trend_available = not match.has_games and bool(match.sets or match.current_set or match.score_events)
         self.trend_heading.setVisible(trend_available)
         self.trend_chart.setVisible(trend_available)

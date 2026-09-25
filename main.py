@@ -47,7 +47,7 @@ def main() -> int:
         theme = ThemeManager(SettingsStore())
         theme.apply()
         updater = Updater([])
-        window = MainWindow(updater, theme, FavoritesStore())
+        window = MainWindow(updater, theme, FavoritesStore(), settings=theme._settings)
         window.setWindowIcon(icon)
         assert not window.windowIcon().isNull()
         window.rankings_page.shutdown()  # Keep packaged self-test fully offline.
@@ -108,7 +108,7 @@ def main() -> int:
         )
     if smoke:
         print("SMOKE: updater created", flush=True)
-    window = MainWindow(updater, theme, favorites)
+    window = MainWindow(updater, theme, favorites, settings=settings)
     if icon:
         window.setWindowIcon(QIcon(icon))
     if os.environ.get("TABLE_TENNIS_LIVE_OFFLINE") == "1":

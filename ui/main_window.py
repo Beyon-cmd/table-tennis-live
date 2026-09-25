@@ -3,27 +3,35 @@ from __future__ import annotations
 
 from datetime import datetime
 from datetime import timedelta
+from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
+    QApplication,
     QButtonGroup,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMainWindow,
     QMenu,
+    QMessageBox,
     QPushButton,
     QStackedWidget,
+    QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
 )
 
 from models import Match, SOURCE_ORDER, SOURCE_NAMES, STATUS_LIVE
-from services.storage import FavoritesStore
+from services.storage import FavoritesStore, SettingsStore
 from services.updater import Updater
 from services.score_trend import ScoreTrendStore
+from services.calendar_export import build_ics
+from services.match_alerts import MatchAlert, MatchAlertTracker
 from ui.match_detail import MatchDetailPage
+from ui.mini_score import MiniScoreWindow
 from ui.section_view import FeedPage
 from ui.theme import ThemeManager
 from ui.rankings import RankingsPage
@@ -69,6 +77,7 @@ class MainWindow(QMainWindow):
         theme: ThemeManager,
         favorites: FavoritesStore,
         parent=None,
+        settings: SettingsStore | None = None,
     ):
         super().__init__(parent)
         self.setWindowTitle("Table Tennis Live")
@@ -78,6 +87,11 @@ class MainWindow(QMainWindow):
         self._updater = updater
         self._theme = theme
         self._favorites = favorites
+        self._settings = settings
+        self._alerts = MatchAlertTracker()
+        self._alert_options = {kind: bool(settings and settings.alert_enabled(kind))
+                               for kind in ("start", "score", "final")}
+        self._last_alert_match_id: str | None = None
         self._matches: dict[str, Match] = {}
         self._score_trends = ScoreTrendStore()
         self._source_health: dict[str, tuple[datetime | None, str]] = {}
@@ -110,6 +124,17 @@ class MainWindow(QMainWindow):
         outer.setSpacing(0)
         outer.addWidget(self._build_sidebar())
         outer.addLayout(self._build_right(), 1)
+        self._mini_score = MiniScoreWindow(self._favorites, self)
+        self._mini_score.detail_requested.connect(self._open_detail_from_mini)
+        self._tray = None
+        if QSystemTrayIcon.isSystemTrayAvailable() and QSystemTrayIcon.supportsMessages():
+            self._tray = QSystemTrayIcon(QApplication.instance().windowIcon(), self)
+            self._tray.setToolTip("Table Tennis Live · 关注比赛提醒")
+            self._tray.messageClicked.connect(self._open_last_alert)
+            self._sync_tray()
+        else:
+            self.alert_button.setEnabled(False)
+            self.alert_button.setToolTip("当前系统托盘不支持通知，无法显示桌面提醒")
 
         # ---------- 刷新与信号 ----------
         self._timer = QTimer(self)
@@ -209,7 +234,7 @@ class MainWindow(QMainWindow):
         self.search_box.setObjectName("SearchBox")
         self.search_box.setPlaceholderText("🔍 搜索比赛、球员、赛事")
         self.search_box.setClearButtonEnabled(True)
-        self.search_box.setFixedWidth(280)
+        self.search_box.setFixedWidth(220)
         self.refresh_button = QPushButton("🔄")
         self.refresh_button.setObjectName("IconButton")
         self.refresh_button.setToolTip("立即刷新")
@@ -218,10 +243,29 @@ class MainWindow(QMainWindow):
         self.theme_button = QPushButton()
         self.theme_button.setObjectName("IconButton")
         self.theme_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.alert_button = QPushButton("🔔 提醒")
+        self.alert_button.setObjectName("RankingButton")
+        self.alert_button.setToolTip("仅软件运行期间提醒已关注比赛；系统通知设置可能阻止弹窗")
+        alert_menu = QMenu(self.alert_button)
+        for kind, label in (("start", "开赛提醒（提前 5 分钟或开赛）"),
+                            ("score", "大比分变化"), ("final", "比赛结束")):
+            action = alert_menu.addAction(label)
+            action.setCheckable(True)
+            action.setChecked(self._alert_options[kind])
+            action.toggled.connect(lambda checked, key=kind: self._set_alert_option(key, checked))
+        alert_menu.addSeparator()
+        info = alert_menu.addAction("仅软件运行期间有效 · 先点 ☆ 关注比赛")
+        info.setEnabled(False)
+        self.alert_button.setMenu(alert_menu)
+        self.mini_button = QPushButton("▣ 迷你比分")
+        self.mini_button.setObjectName("RankingButton")
+        self.mini_button.clicked.connect(self._toggle_mini_score)
         bar.addWidget(self.page_title)
         bar.addStretch(1)
         bar.addWidget(self.search_box)
         bar.addWidget(self.refresh_button)
+        bar.addWidget(self.alert_button)
+        bar.addWidget(self.mini_button)
         bar.addWidget(self.theme_button)
         right.addWidget(topbar)
 
@@ -321,6 +365,7 @@ class MainWindow(QMainWindow):
             self.major_history_pages[category] = page
         self.detail_page.back_requested.connect(self._back_from_detail)
         self.detail_page.favorite_toggled.connect(self._on_favorite_toggled)
+        self.detail_page.calendar_requested.connect(self._export_calendar)
         for page in (self.home_page, self.live_page, self.schedule_page, self.favorites_page,
                      self.search_page, self.detail_page, self.rankings_page, self.draws_page,
                      self.asian_draws_page, *self.major_history_pages.values(),
@@ -511,10 +556,13 @@ class MainWindow(QMainWindow):
 
     def _on_detail_ready(self, match) -> None:
         self._matches[match.id] = match
+        self._process_alerts(match)
         self._score_trends.observe(match)
         if self._detail_id == match.id:
             self.detail_page.set_match(match)
             self.detail_page.set_trend_points(self._score_trends.points(match))
+        if self._mini_score.isVisible():
+            self._mini_score.set_matches(list(self._matches.values()))
 
     def _back_from_detail(self) -> None:
         self._detail_id = None
@@ -530,6 +578,7 @@ class MainWindow(QMainWindow):
     def _on_matches_changed(self, matches) -> None:
         for m in matches:
             self._matches[m.id] = m
+            self._process_alerts(m)
             self._score_trends.observe(m)
         if self._detail_id and self._detail_id in {m.id for m in matches}:
             detail = self._matches.get(self._detail_id)
@@ -537,13 +586,18 @@ class MainWindow(QMainWindow):
                 self.detail_page.set_match(detail)
                 self.detail_page.set_trend_points(self._score_trends.points(detail))
         self._refresh_pages()
+        if self._mini_score.isVisible():
+            self._mini_score.set_matches(list(self._matches.values()))
 
     def _on_matches_removed(self, ids) -> None:
         for mid in ids:
             self._matches.pop(mid, None)
+            self._alerts.forget(mid)
         if self._detail_id in ids:
             self._back_from_detail()
         self._refresh_pages()
+        if self._mini_score.isVisible():
+            self._mini_score.set_matches(list(self._matches.values()))
 
     def _on_refresh_error(self, message: str) -> None:
         # 具体状态由 source_status 管理，不能让下一次页面刷新抹掉告警。
@@ -643,6 +697,11 @@ class MainWindow(QMainWindow):
 
     def _refresh_times(self) -> None:
         now = datetime.now()
+        for match in self._matches.values():
+            if self._favorites.contains(match.id):
+                alert = self._alerts.due(match, now, self._alert_options)
+                if alert is not None:
+                    self._show_alert(alert)
         for page in (
             self.home_page,
             self.live_page,
@@ -657,7 +716,71 @@ class MainWindow(QMainWindow):
 
     # ================= 收藏 =================
     def _on_favorite_toggled(self, match_id: str, favorite: bool) -> None:
+        if favorite and match_id in self._matches:
+            self._alerts.update(self._matches[match_id], True, self._alert_options)
+        elif not favorite:
+            self._alerts.forget(match_id)
         self._refresh_pages()
+        if self._mini_score.isVisible():
+            self._mini_score.set_matches(list(self._matches.values()))
+
+    def _set_alert_option(self, kind: str, enabled: bool) -> None:
+        self._alert_options[kind] = enabled
+        if self._settings is not None:
+            self._settings.set_alert(kind, enabled)
+        self._sync_tray()
+
+    def _sync_tray(self) -> None:
+        if self._tray is not None:
+            self._tray.setVisible(any(self._alert_options.values()))
+
+    def _process_alerts(self, match: Match) -> None:
+        for alert in self._alerts.update(match, self._favorites.contains(match.id),
+                                         self._alert_options):
+            self._show_alert(alert)
+
+    def _show_alert(self, alert: MatchAlert) -> None:
+        if self._tray is None or not self._tray.isVisible():
+            return
+        self._last_alert_match_id = alert.match_id
+        self._tray.showMessage(alert.title, alert.message,
+                               QSystemTrayIcon.MessageIcon.Information, 8000)
+
+    def _open_last_alert(self) -> None:
+        if self._last_alert_match_id:
+            self._open_detail_from_mini(self._last_alert_match_id)
+
+    def _toggle_mini_score(self) -> None:
+        if self._mini_score.isVisible():
+            self._mini_score.hide()
+            return
+        self._mini_score.setWindowIcon(QApplication.instance().windowIcon())
+        self._mini_score.set_matches(list(self._matches.values()))
+        self._mini_score.show()
+        self._mini_score.raise_()
+
+    def _open_detail_from_mini(self, match_id: str) -> None:
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
+        self._open_detail(match_id)
+
+    def _export_calendar(self, match: Match) -> None:
+        if match is None or match.status != "upcoming":
+            return
+        suggested = f"table-tennis-{match.start_time:%Y%m%d-%H%M}.ics"
+        path, _ = QFileDialog.getSaveFileName(self, "导出比赛日历", suggested,
+                                              "iCalendar 文件 (*.ics)")
+        if not path:
+            return
+        if not path.lower().endswith(".ics"):
+            path += ".ics"
+        try:
+            Path(path).write_bytes(build_ics(match))
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, "导出失败", str(exc))
+            return
+        QMessageBox.information(self, "已导出", "已保存日历文件。导入日历后请留意官方赛程变更。")
 
     # ================= 主题 =================
     def _cycle_theme(self) -> None:
@@ -701,6 +824,9 @@ class MainWindow(QMainWindow):
 
     # ================= 退出 =================
     def closeEvent(self, event):
+        self._mini_score.close()
+        if self._tray is not None:
+            self._tray.hide()
         self.draws_page.shutdown()
         self.asian_draws_page.shutdown()
         self.rankings_page.shutdown()

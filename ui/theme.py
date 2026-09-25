@@ -80,6 +80,15 @@ QHeaderView::section { background: $WINDOW_ALT; color: $TEXT_SEC; padding: 10px;
 QWidget#Root { background: $WINDOW; }
 QWidget#Sidebar { background: $SIDEBAR; border-right: 1px solid $BORDER; }
 QWidget#TopBar { background: $WINDOW; border-bottom: 1px solid $BORDER; }
+QWidget#MiniScoreWindow { background: $CARD; border: 1px solid $BORDER; border-radius: 12px; }
+QLabel#MiniTitle { color: $TEXT; font-size: 16px; font-weight: 700; }
+QLabel#MiniMeta { color: $TEXT_SEC; font-size: 11px; }
+QLabel#MiniPlayers { color: $TEXT; font-size: 15px; font-weight: 600; }
+QLabel#MiniScore { color: $ACCENT; background: $ACCENT_SOFT; border-radius: 10px;
+    padding: 12px; font-size: 20px; font-weight: 700; }
+QComboBox#MiniSelector { background: $INPUT; color: $TEXT; border: 1px solid $BORDER;
+    border-radius: 8px; padding: 7px 10px; min-height: 23px; }
+QComboBox#MiniSelector:hover { border-color: $ACCENT; }
 QScrollArea { background: transparent; border: none; }
 QWidget#FeedContainer, QWidget#DetailContainer { background: transparent; }
 QLabel#Brand { font-size: 16px; font-weight: 700; color: $TEXT; }
