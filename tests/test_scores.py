@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import Mock
 from models import Match
 
@@ -11,6 +11,7 @@ from data_sources.major_team_results import TEAM_RESULTS
 class ScoreTests(unittest.TestCase):
     def setUp(self):
         self.source = WTTDataSource()
+        self.source._event_offset = Mock(return_value=timedelta(hours=5))
 
     def tearDown(self):
         self.source._client.close()

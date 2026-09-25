@@ -24,6 +24,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from data_sources.base import DataSource, make_client
 from data_sources.name_map import to_chinese_name
+from data_sources.wtt_time import offset_for_event, venue_to_local
 from models import Match, STATUS_FINISHED, STATUS_LIVE, STATUS_UPCOMING
 
 FRONT = "https://wtt-web-frontdoor-cthahjeqhbh6aqe3.a01.azurefd.net"
@@ -66,6 +67,7 @@ class WTTDataSource(DataSource):
         self._client = make_client()
         self._cache: dict[str, tuple[object, float]] = {}
         self._event_match_cache: dict[int, list[Match]] = {}
+        self._event_offsets: dict[int, timedelta] = {}
 
     def _cached(self, key: str, ttl: float):
         item = self._cache.get(key)
@@ -162,6 +164,9 @@ class WTTDataSource(DataSource):
 
     def _event_matches(self, event_id: int, event_name: str) -> list[Match]:
         now = datetime.now()
+        event_offset = self._event_offset(event_id)
+        if event_offset is None:
+            raise ValueError(f"WTT 赛事 {event_id} 的场馆时区未核实")
         units = self._get_schedule(event_id)
         # 新版 livematchids 返回 {d: documentCode, ...} 对象，赛程 Code 的
         # 尾部横线数量又不同；用归一化 Code 作索引，保留完整 Code 请求比赛卡。
@@ -190,7 +195,8 @@ class WTTDataSource(DataSource):
         for key, card in live_data.items():
             if not card:
                 continue
-            match = self._build_from_card(event_name, key, {"match_card": card}, None, now)
+            match = self._build_from_card(event_name, key, {"match_card": card}, None, now,
+                                          event_offset)
             if match is None:
                 continue
             parsed = self._parse_match_data(card)
@@ -227,6 +233,7 @@ class WTTDataSource(DataSource):
                 results.get(key),
                 result_min.get(key),
                 now,
+                event_offset,
             )
             if match is not None:
                 match.id = f"wtt:{event_id}:{key}"
@@ -236,11 +243,28 @@ class WTTDataSource(DataSource):
         for key, card in results.items():
             if key in seen:
                 continue
-            match = self._build_from_card(event_name, key, card, result_min.get(key), now)
+            match = self._build_from_card(event_name, key, card, result_min.get(key), now,
+                                          event_offset)
             if match is not None:
                 match.id = f"wtt:{event_id}:{key}"
                 matches.append(match)
         return matches
+
+    def _event_offset(self, event_id: int) -> timedelta | None:
+        if event_id in self._event_offsets:
+            return self._event_offsets[event_id]
+        data = self._get_json(EVENTS_FALLBACK_URL, "events_fallback", ttl=600)
+        for row in data if isinstance(data, list) else []:
+            try:
+                if int(row.get("eventId")) != event_id:
+                    continue
+            except (TypeError, ValueError):
+                continue
+            offset = offset_for_event(row)
+            if offset is not None:
+                self._event_offsets[event_id] = offset
+            return offset
+        return None
 
     def _get_schedule(self, event_id: int) -> list[dict]:
         url = f"{FRONT}/websitecacheddata/{event_id}/schedule/schedule.json"
@@ -321,6 +345,7 @@ class WTTDataSource(DataSource):
         result: dict | None,
         result_min: dict | None,
         now: datetime,
+        event_offset: timedelta | None = None,
     ) -> Match | None:
         code = unit.get("Code") or ""
         start_text = unit.get("StartDate")
@@ -331,6 +356,8 @@ class WTTDataSource(DataSource):
             start = datetime.fromisoformat(start_text)
         except ValueError:
             return None
+        if event_offset is not None:
+            start = venue_to_local(start, event_offset)
 
         starts = (unit.get("StartList") or {}).get("Start") or []
         if len(starts) < 2:
@@ -375,7 +402,7 @@ class WTTDataSource(DataSource):
             names, raws, score_a, score_b, sets = self._card_data(card, names, raws)
             player_ids = self._card_player_ids(card) or player_ids
             status = STATUS_FINISHED
-            start = self._result_start(result_min, start)
+            start = self._result_start(result_min, start, event_offset)
             score_known = self._parse_match_data(card) is not None
             current_set = None
         elif key in live_ids:
@@ -416,6 +443,7 @@ class WTTDataSource(DataSource):
         result: dict,
         result_min: dict | None,
         now: datetime,
+        event_offset: timedelta | None = None,
     ) -> Match | None:
         card = result.get("match_card") or {}
         names, raws, score_a, score_b, sets = self._card_data(card, [None, None], ["", ""])
@@ -428,6 +456,8 @@ class WTTDataSource(DataSource):
         if result_min and result_min.get("startDateLocal"):
             try:
                 start = datetime.fromisoformat(result_min["startDateLocal"])
+                if event_offset is not None:
+                    start = venue_to_local(start, event_offset)
             except ValueError:
                 pass
         return Match(
@@ -537,10 +567,12 @@ class WTTDataSource(DataSource):
         return raw, ""
 
     @staticmethod
-    def _result_start(result_min: dict | None, fallback: datetime) -> datetime:
+    def _result_start(result_min: dict | None, fallback: datetime,
+                      event_offset: timedelta | None = None) -> datetime:
         if result_min and result_min.get("startDateLocal"):
             try:
-                return datetime.fromisoformat(result_min["startDateLocal"])
+                start = datetime.fromisoformat(result_min["startDateLocal"])
+                return venue_to_local(start, event_offset) if event_offset is not None else start
             except ValueError:
                 pass
         return fallback

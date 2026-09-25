@@ -227,24 +227,24 @@ class MainWindow(QMainWindow):
         topbar.setObjectName("TopBar")
         bar = QHBoxLayout(topbar)
         bar.setContentsMargins(24, 10, 20, 10)
-        bar.setSpacing(10)
+        bar.setSpacing(9)
         self.page_title = QLabel("首页")
         self.page_title.setObjectName("PageTitle")
         self.search_box = QLineEdit()
         self.search_box.setObjectName("SearchBox")
-        self.search_box.setPlaceholderText("🔍 搜索比赛、球员、赛事")
+        self.search_box.setPlaceholderText("搜索比赛、球员或赛事")
         self.search_box.setClearButtonEnabled(True)
-        self.search_box.setFixedWidth(220)
-        self.refresh_button = QPushButton("🔄")
-        self.refresh_button.setObjectName("IconButton")
-        self.refresh_button.setToolTip("立即刷新")
+        self.search_box.setFixedWidth(235)
+        self.refresh_button = QPushButton("↻")
+        self.refresh_button.setObjectName("TopRefreshButton")
         self.refresh_button.setToolTip("立即检查更新；直播约每 2 秒轮询，实际延迟取决于官方数据源")
         self.refresh_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.theme_button = QPushButton()
-        self.theme_button.setObjectName("IconButton")
+        self.theme_button.setObjectName("TopToolButton")
         self.theme_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.alert_button = QPushButton("🔔 提醒")
-        self.alert_button.setObjectName("RankingButton")
+        self.alert_button = QPushButton("赛况通知")
+        self.alert_button.setObjectName("TopToolButton")
+        self.alert_button.setProperty("active", any(self._alert_options.values()))
         self.alert_button.setToolTip("仅软件运行期间提醒已关注比赛；系统通知设置可能阻止弹窗")
         alert_menu = QMenu(self.alert_button)
         for kind, label in (("start", "开赛提醒（提前 5 分钟或开赛）"),
@@ -257,16 +257,22 @@ class MainWindow(QMainWindow):
         info = alert_menu.addAction("仅软件运行期间有效 · 先点 ☆ 关注比赛")
         info.setEnabled(False)
         self.alert_button.setMenu(alert_menu)
-        self.mini_button = QPushButton("▣ 迷你比分")
-        self.mini_button.setObjectName("RankingButton")
+        self.mini_button = QPushButton("悬浮比分")
+        self.mini_button.setObjectName("TopToolButton")
         self.mini_button.clicked.connect(self._toggle_mini_score)
+        tools = QWidget()
+        tools.setObjectName("TopTools")
+        tools.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        tool_layout = QHBoxLayout(tools)
+        tool_layout.setContentsMargins(4, 4, 4, 4)
+        tool_layout.setSpacing(1)
+        for button in (self.alert_button, self.mini_button, self.theme_button):
+            tool_layout.addWidget(button)
         bar.addWidget(self.page_title)
         bar.addStretch(1)
         bar.addWidget(self.search_box)
         bar.addWidget(self.refresh_button)
-        bar.addWidget(self.alert_button)
-        bar.addWidget(self.mini_button)
-        bar.addWidget(self.theme_button)
+        bar.addWidget(tools)
         right.addWidget(topbar)
 
         self.wtt_tabs = QWidget()
@@ -726,6 +732,9 @@ class MainWindow(QMainWindow):
 
     def _set_alert_option(self, kind: str, enabled: bool) -> None:
         self._alert_options[kind] = enabled
+        self.alert_button.setProperty("active", any(self._alert_options.values()))
+        self.alert_button.style().unpolish(self.alert_button)
+        self.alert_button.style().polish(self.alert_button)
         if self._settings is not None:
             self._settings.set_alert(kind, enabled)
         self._sync_tray()
@@ -787,8 +796,8 @@ class MainWindow(QMainWindow):
         self._theme.cycle()
 
     def _update_theme_button(self) -> None:
-        self.theme_button.setText(self._theme.mode_label())
-        self.theme_button.setToolTip("切换主题：浅色 / 深色 / 跟随系统")
+        self.theme_button.setText("外观")
+        self.theme_button.setToolTip(f"当前：{self._theme.mode_label()} · 点击切换主题")
 
     # ================= 排序 =================
     @staticmethod

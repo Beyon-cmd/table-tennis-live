@@ -80,6 +80,16 @@ QHeaderView::section { background: $WINDOW_ALT; color: $TEXT_SEC; padding: 10px;
 QWidget#Root { background: $WINDOW; }
 QWidget#Sidebar { background: $SIDEBAR; border-right: 1px solid $BORDER; }
 QWidget#TopBar { background: $WINDOW; border-bottom: 1px solid $BORDER; }
+QWidget#TopTools { background: $CARD; border: 1px solid $BORDER; border-radius: 11px; }
+QPushButton#TopToolButton { background: transparent; color: $TEXT_SEC; border: none;
+    border-radius: 8px; padding: 8px 11px; font-size: 13px; font-weight: 600; min-height: 22px; }
+QPushButton#TopToolButton:hover { background: $HOVER; color: $TEXT; }
+QPushButton#TopToolButton[active="true"] { background: $ACCENT_SOFT; color: $ACCENT; }
+QPushButton#TopToolButton:disabled { color: $TEXT_SEC; }
+QPushButton#TopToolButton::menu-indicator { image: none; width: 0px; }
+QPushButton#TopRefreshButton { background: $CARD; color: $ACCENT; border: 1px solid $BORDER;
+    border-radius: 10px; min-width: 40px; min-height: 40px; padding: 0px; font-size: 21px; }
+QPushButton#TopRefreshButton:hover { background: $ACCENT_SOFT; border-color: $ACCENT; }
 QWidget#MiniScoreWindow { background: $CARD; border: 1px solid $BORDER; border-radius: 12px; }
 QLabel#MiniTitle { color: $TEXT; font-size: 16px; font-weight: 700; }
 QLabel#MiniMeta { color: $TEXT_SEC; font-size: 11px; }
