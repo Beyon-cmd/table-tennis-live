@@ -23,7 +23,6 @@ from models import Match, SOURCE_ORDER, SOURCE_NAMES, STATUS_LIVE
 from services.storage import FavoritesStore
 from services.updater import Updater
 from services.score_trend import ScoreTrendStore
-from services.h2h import build_h2h
 from ui.match_detail import MatchDetailPage
 from ui.section_view import FeedPage
 from ui.theme import ThemeManager
@@ -503,7 +502,6 @@ class MainWindow(QMainWindow):
         self._detail_id = match_id
         self.page_title.setText(PAGE_TITLES["detail"])
         self.detail_page.set_match(match)
-        self._update_h2h(match)
         self._score_trends.observe(match)
         self.detail_page.set_trend_points(self._score_trends.points(match))
         if match_id not in self._historical_matches:
@@ -516,13 +514,7 @@ class MainWindow(QMainWindow):
         self._score_trends.observe(match)
         if self._detail_id == match.id:
             self.detail_page.set_match(match)
-            self._update_h2h(match)
             self.detail_page.set_trend_points(self._score_trends.points(match))
-
-    def _update_h2h(self, match: Match) -> None:
-        if match.status == "upcoming":
-            self.detail_page.set_h2h_report(build_h2h(
-                match, list(self._matches.values()) + list(self._historical_matches.values())))
 
     def _back_from_detail(self) -> None:
         self._detail_id = None
@@ -543,11 +535,7 @@ class MainWindow(QMainWindow):
             detail = self._matches.get(self._detail_id)
             if detail is not None:
                 self.detail_page.set_match(detail)
-                self._update_h2h(detail)
                 self.detail_page.set_trend_points(self._score_trends.points(detail))
-        elif self._detail_id and self._detail_id in self._matches:
-            # Another result may have finished while this fixture remains open.
-            self._update_h2h(self._matches[self._detail_id])
         self._refresh_pages()
 
     def _on_matches_removed(self, ids) -> None:
@@ -555,8 +543,6 @@ class MainWindow(QMainWindow):
             self._matches.pop(mid, None)
         if self._detail_id in ids:
             self._back_from_detail()
-        elif self._detail_id and self._detail_id in self._matches:
-            self._update_h2h(self._matches[self._detail_id])
         self._refresh_pages()
 
     def _on_refresh_error(self, message: str) -> None:

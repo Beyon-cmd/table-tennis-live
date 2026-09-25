@@ -1,7 +1,7 @@
 [Setup]
 AppId={{1D4F74EC-4ABD-4BCB-AF59-EDC681D64A94}
 AppName=Table Tennis Live
-AppVersion=1.8.0
+AppVersion=1.8.1
 DefaultDirName={localappdata}\Programs\TableTennisLive
 DefaultGroupName=Table Tennis Live
 PrivilegesRequired=lowest
@@ -9,7 +9,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 OutputDir=release
-OutputBaseFilename=TableTennisLive-1.8.0-Setup-x64
+OutputBaseFilename=TableTennisLive-1.8.1-Setup-x64
 SetupIconFile=assets\icon.ico
 UninstallDisplayIcon={app}\TableTennisLive.exe
 Compression=lzma2
