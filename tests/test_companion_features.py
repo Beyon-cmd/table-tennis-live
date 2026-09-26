@@ -108,7 +108,7 @@ class CompanionFeatureTests(unittest.TestCase):
             try:
                 self.assertEqual(window.alert_button.text(), "赛况通知")
                 self.assertEqual(window.mini_button.text(), "悬浮比分")
-                self.assertEqual(window.theme_button.text(), "外观")
+                self.assertFalse(hasattr(window, "theme_button"))
                 window._on_matches_changed([self.match])
                 window._toggle_mini_score()
                 self.assertTrue(window._mini_score.isVisible())

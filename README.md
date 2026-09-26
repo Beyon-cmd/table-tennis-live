@@ -1,5 +1,19 @@
 # Table Tennis Live 🏓
 
+## Windows 11 原生版（WinUI 3 预览）
+
+`native/` 是正在迁移的 C# / .NET / WinUI 3 版本，包含实时比分、比赛详情、签表、世界排名、球员资料及账号同步等功能。原有 Python/Qt 程序暂时保留作功能参考；两版安装目录互不覆盖。原生版目前仍是预览版，官方数据缺失时不会推测比分或选手身份。
+
+在 Windows 11 x64 构建原生版安装包：
+
+```powershell
+.\build_native_installer.ps1
+```
+
+需要 .NET 10 SDK、Windows SDK、Windows App SDK NuGet 依赖，以及放在 `.inno-compiler/ISCC.exe` 的 Inno Setup 编译器。安装包生成到 `release/native-winui-x64/`；自包含发布会携带 .NET 与 Windows App SDK 运行文件。此预览安装包尚未签名，也尚未在干净电脑上完成安装验收。Supabase 账号同步还需按 `native/SUPABASE_SETUP.sql` 配置项目数据库与权限。
+
+以下文档主要描述原有 Python/Qt 版本。
+
 Windows 桌面端乒乓球实时比分客户端，MSN / Microsoft Start 风格。
 
 当前版本：1.9.1，包含现代化浅色/深色界面、平滑滚动、页面过渡、官方比分、得分走势、关注比赛通知、悬浮比分、日历导出、男单/女单世界排名、WTT 与亚运会赛事签表、三大赛分类决赛档案、按需加载的选手资料，以及亚运会乒乓球实时赛程。

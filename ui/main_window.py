@@ -30,6 +30,8 @@ from services.updater import Updater
 from services.score_trend import ScoreTrendStore
 from services.calendar_export import build_ics
 from services.match_alerts import MatchAlert, MatchAlertTracker
+from services.cloud_sync import CloudSyncManager
+from ui.account_dialog import AccountDialog
 from ui.match_detail import MatchDetailPage
 from ui.mini_score import MiniScoreWindow
 from ui.section_view import FeedPage
@@ -38,6 +40,7 @@ from ui.rankings import RankingsPage
 from ui.motion import TransitionStack
 from ui.wtt_draws import WTTDrawsPage
 from ui.asian_games_draws import AsianGamesDrawsPage
+from ui.widgets import set_star_state
 from ui.player_profile import PlayerProfileDialog
 from data_sources.player_profiles import PlayerRequest, PlayerProfileService, split_players
 from data_sources.majors import MAJOR_EVENTS, MajorsDataSource
@@ -78,6 +81,7 @@ class MainWindow(QMainWindow):
         favorites: FavoritesStore,
         parent=None,
         settings: SettingsStore | None = None,
+        cloud: CloudSyncManager | None = None,
     ):
         super().__init__(parent)
         self.setWindowTitle("Table Tennis Live")
@@ -88,6 +92,7 @@ class MainWindow(QMainWindow):
         self._theme = theme
         self._favorites = favorites
         self._settings = settings
+        self._cloud = cloud
         self._alerts = MatchAlertTracker()
         self._alert_options = {kind: bool(settings and settings.alert_enabled(kind))
                                for kind in ("start", "score", "final")}
@@ -147,8 +152,9 @@ class MainWindow(QMainWindow):
         updater.error.connect(self._on_refresh_error)
         updater.source_status.connect(self._on_source_status)
         updater.detail_ready.connect(self._on_detail_ready)
-        theme.changed.connect(self._update_theme_button)
-        self._update_theme_button()
+        if cloud is not None:
+            cloud.state_changed.connect(self._on_cloud_state)
+            cloud.favorites_changed.connect(self._on_cloud_favorites_changed)
 
     # ================= 界面搭建 =================
     def _build_sidebar(self) -> QWidget:
@@ -205,6 +211,15 @@ class MainWindow(QMainWindow):
             layout.addWidget(btn)
 
         layout.addStretch(1)
+        self.account_button = QPushButton("登录与同步")
+        self.account_button.setObjectName("AccountSidebarButton")
+        self.account_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.account_button.clicked.connect(self._open_account)
+        layout.addWidget(self.account_button)
+        self.account_status = QLabel("关注仅保存在此电脑")
+        self.account_status.setObjectName("SourceHealth")
+        self.account_status.setContentsMargins(8, 0, 8, 7)
+        layout.addWidget(self.account_status)
         self.source_health_label = QLabel("数据源 · 等待首次取数")
         self.source_health_label.setObjectName("SourceHealth")
         self.source_health_label.setContentsMargins(8, 4, 8, 0)
@@ -239,9 +254,6 @@ class MainWindow(QMainWindow):
         self.refresh_button.setObjectName("TopRefreshButton")
         self.refresh_button.setToolTip("立即检查更新；直播约每 2 秒轮询，实际延迟取决于官方数据源")
         self.refresh_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.theme_button = QPushButton()
-        self.theme_button.setObjectName("TopToolButton")
-        self.theme_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.alert_button = QPushButton("赛况通知")
         self.alert_button.setObjectName("TopToolButton")
         self.alert_button.setProperty("active", any(self._alert_options.values()))
@@ -266,7 +278,7 @@ class MainWindow(QMainWindow):
         tool_layout = QHBoxLayout(tools)
         tool_layout.setContentsMargins(4, 4, 4, 4)
         tool_layout.setSpacing(1)
-        for button in (self.alert_button, self.mini_button, self.theme_button):
+        for button in (self.alert_button, self.mini_button):
             tool_layout.addWidget(button)
         bar.addWidget(self.page_title)
         bar.addStretch(1)
@@ -403,7 +415,6 @@ class MainWindow(QMainWindow):
 
         self.search_box.textChanged.connect(self._on_search_changed)
         self.refresh_button.clicked.connect(self._refresh_current_page)
-        self.theme_button.clicked.connect(self._cycle_theme)
         self._nav_keys["home"].setChecked(True)
         return right
 
@@ -729,6 +740,32 @@ class MainWindow(QMainWindow):
         self._refresh_pages()
         if self._mini_score.isVisible():
             self._mini_score.set_matches(list(self._matches.values()))
+        if self._cloud is not None:
+            self._cloud.favorite_changed()
+
+    def _open_account(self) -> None:
+        if self._cloud is None:
+            QMessageBox.information(self, "账号与同步", "此构建未启用云端同步。")
+            return
+        dialog = AccountDialog(self._cloud, self)
+        dialog.exec()
+
+    def _on_cloud_state(self, message: str) -> None:
+        self.account_button.setText("账号与同步" if self._cloud and self._cloud.session else "登录与同步")
+        self.account_status.setText(message)
+        self.account_status.setToolTip(message)
+
+    def _on_cloud_favorites_changed(self) -> None:
+        self._refresh_pages()
+        for page in (self.home_page, self.live_page, self.schedule_page,
+                     self.favorites_page, self.search_page, *self.major_current_pages.values(),
+                     *self.major_history_pages.values()):
+            for card in page.all_cards():
+                set_star_state(card.star, self._favorites.contains(card._match.id))
+        if self._detail_id and self._detail_id in self._matches:
+            self.detail_page.set_match(self._matches[self._detail_id])
+        if self._mini_score.isVisible():
+            self._mini_score.set_matches(list(self._matches.values()))
 
     def _set_alert_option(self, kind: str, enabled: bool) -> None:
         self._alert_options[kind] = enabled
@@ -791,14 +828,6 @@ class MainWindow(QMainWindow):
             return
         QMessageBox.information(self, "已导出", "已保存日历文件。导入日历后请留意官方赛程变更。")
 
-    # ================= 主题 =================
-    def _cycle_theme(self) -> None:
-        self._theme.cycle()
-
-    def _update_theme_button(self) -> None:
-        self.theme_button.setText("外观")
-        self.theme_button.setToolTip(f"当前：{self._theme.mode_label()} · 点击切换主题")
-
     # ================= 排序 =================
     @staticmethod
     def _sort_live(matches):
@@ -833,6 +862,8 @@ class MainWindow(QMainWindow):
 
     # ================= 退出 =================
     def closeEvent(self, event):
+        if self._cloud is not None:
+            self._cloud.shutdown()
         self._mini_score.close()
         if self._tray is not None:
             self._tray.hide()

@@ -1,0 +1,514 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page x:Class="TableTennisLive_WinUI.MainShellPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <NavigationView x:Name="Navigation" IsBackButtonVisible="Collapsed"
+                    IsSettingsVisible="True" PaneDisplayMode="Left"
+                    SelectionChanged="Navigation_SelectionChanged"
+                    OpenPaneLength="240" CompactPaneLength="56">
+        <NavigationView.PaneHeader>
+            <StackPanel Margin="12,14,0,18" Spacing="2">
+                <TextBlock Text="TABLE TENNIS" FontSize="18" FontWeight="Bold" />
+                <TextBlock Text="LIVE CENTER" FontSize="11" Opacity="0.55" />
+            </StackPanel>
+        </NavigationView.PaneHeader>
+        <NavigationView.MenuItems>
+            <NavigationViewItem Content="首页" Tag="home" Icon="Home" />
+            <NavigationViewItem Content="实时" Tag="live" Icon="Play" />
+            <NavigationViewItem Content="今日赛程" Tag="schedule" Icon="Calendar" />
+            <NavigationViewItem Content="我的关注" Tag="favorites" Icon="Favorite" />
+            <NavigationViewItem Content="世界排名" Tag="rankings" Icon="List" />
+            <NavigationViewItemSeparator />
+            <NavigationViewItem Content="大赛" Tag="majors" Icon="Globe" />
+            <NavigationViewItem Content="WTT" Tag="wtt" Icon="World" />
+            <NavigationViewItem Content="日本 T.League" Tag="tleague" Icon="Flag" />
+            <NavigationViewItem Content="德国 TTBL" Tag="ttbl" Icon="Flag" />
+            <NavigationViewItem Content="中国乒超" Tag="cttsl" Icon="Flag" />
+        </NavigationView.MenuItems>
+        <Grid x:Name="PageBody" Padding="32,24,32,24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="290" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="赛事中心 / 2026" FontSize="12" Opacity="0.55" />
+                    <TextBlock Text="{Binding SectionTitle}" FontFamily="Segoe UI Variable Display"
+                               FontSize="30" FontWeight="Bold" />
+                </StackPanel>
+                <TextBox x:Name="SearchBox" Grid.Column="1" PlaceholderText="搜索球员、比赛或赛事"
+                         VerticalAlignment="Center" TextChanged="SearchBox_TextChanged" />
+                <Button Grid.Column="2" Content="刷新" VerticalAlignment="Center" Click="Refresh_Click" />
+                <Button Grid.Column="3" Content="悬浮比分" VerticalAlignment="Center"
+                        Click="MiniScore_Click" />
+            </Grid>
+            <StackPanel Grid.Row="1" Spacing="10" Margin="0,12,0,16">
+                <TextBlock Text="{Binding Health}" FontSize="12" Opacity="0.55" />
+                <StackPanel x:Name="MajorTabs" Orientation="Horizontal" Spacing="8"
+                            Visibility="Collapsed">
+                    <Button Content="亚运会 · 当期" Tag="亚运会" Click="MajorCategory_Click" />
+                    <Button Content="奥运会 · 历届决赛" Tag="奥运会" Click="MajorCategory_Click" />
+                    <Button Content="世锦赛 · 历届决赛" Tag="世锦赛" Click="MajorCategory_Click" />
+                    <Button Content="世界杯 · 历届决赛" Tag="世界杯" Click="MajorCategory_Click" />
+                </StackPanel>
+                <StackPanel x:Name="WttTabs" Orientation="Horizontal" Spacing="8"
+                            Visibility="Collapsed">
+                    <Button Content="比赛" Tag="matches" Click="WttMode_Click" />
+                    <Button Content="签表" Tag="draws" Click="WttMode_Click" />
+                </StackPanel>
+                <StackPanel x:Name="AsianTabs" Orientation="Horizontal" Spacing="8"
+                            Visibility="Collapsed">
+                    <Button Content="亚运会比赛" Tag="matches" Click="AsianMode_Click" />
+                    <Button Content="亚运会签表" Tag="draws" Click="AsianMode_Click" />
+                </StackPanel>
+            </StackPanel>
+            <Grid Grid.Row="2">
+                <ListView x:Name="MatchList" ItemsSource="{Binding Matches}"
+                          IsItemClickEnabled="True" SelectionMode="None"
+                          ItemClick="MatchList_ItemClick" HorizontalContentAlignment="Stretch">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="16" Padding="20,16"
+                                    Margin="0,0,0,12" PointerEntered="MatchCard_PointerEntered"
+                                    PointerExited="MatchCard_PointerExited">
+                                <Grid ColumnSpacing="22">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{Binding Competition}" TextTrimming="CharacterEllipsis"
+                                                   FontSize="12" Opacity="0.55" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Image Source="{Binding PlayerAFlagUri}"
+                                                   Visibility="{Binding PlayerAFlagVisibility}"
+                                                   Width="24" Height="16" Stretch="UniformToFill" />
+                                            <Button Content="{Binding PlayerAWithFlag}" Tag="{Binding}" Click="PlayerA_Click"
+                                                    Visibility="{Binding PlayerHeaderVisibility}"
+                                                    HorizontalAlignment="Left" FontSize="16" FontWeight="SemiBold"
+                                                    Background="Transparent" BorderThickness="0" Padding="0" />
+                                            <TextBlock Text="{Binding PlayerAWithFlag}"
+                                                       Visibility="{Binding ClubHeaderVisibility}"
+                                                       FontSize="16" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Image Source="{Binding PlayerBFlagUri}"
+                                                   Visibility="{Binding PlayerBFlagVisibility}"
+                                                   Width="24" Height="16" Stretch="UniformToFill" />
+                                            <Button Content="{Binding PlayerBWithFlag}" Tag="{Binding}" Click="PlayerB_Click"
+                                                    Visibility="{Binding PlayerHeaderVisibility}"
+                                                    HorizontalAlignment="Left" FontSize="16" FontWeight="SemiBold"
+                                                    Background="Transparent" BorderThickness="0" Padding="0" />
+                                            <TextBlock Text="{Binding PlayerBWithFlag}"
+                                                       Visibility="{Binding ClubHeaderVisibility}"
+                                                       FontSize="16" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Sets}" FontSize="12" Opacity="0.65"
+                                                   TextWrapping="Wrap" MaxLines="2" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="5">
+                                        <Button Content="{Binding Score}" Tag="{Binding}"
+                                                Click="ScoreBreakdown_Click" ToolTipService.ToolTip="打开逐局比分"
+                                                FontFamily="Segoe UI Variable Display" FontSize="28"
+                                                FontWeight="SemiBold" HorizontalAlignment="Center"
+                                                Background="Transparent" BorderThickness="0" Padding="6,0" />
+                                        <TextBlock Text="{Binding Status}" FontSize="12" Opacity="0.7"
+                                                   HorizontalAlignment="Center" />
+                                        <TextBlock Text="查看逐局 ↗" FontSize="11" Opacity="0.55"
+                                                   HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="{Binding FavoriteGlyph}" Tag="{Binding Id}"
+                                            Click="Favorite_Click" VerticalAlignment="Top" FontSize="18"
+                                            Background="Transparent" BorderThickness="0" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+                <Border x:Name="EmptyView" Visibility="Collapsed"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        CornerRadius="16" Padding="32,24" MaxWidth="520">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="当前没有比赛" FontSize="20" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock x:Name="EmptyMessage" TextWrapping="Wrap"
+                                   TextAlignment="Center" Opacity="0.65" />
+                    </StackPanel>
+                </Border>
+                <ScrollViewer x:Name="DetailView" Visibility="Collapsed">
+                    <StackPanel Spacing="22">
+                        <Button Content="← 返回比赛列表" Click="Back_Click" HorizontalAlignment="Left" />
+                        <Border x:Name="DetailHero" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1" CornerRadius="20" Padding="28">
+                            <StackPanel Spacing="20">
+                                <TextBlock Text="{Binding Selected.Competition}" FontSize="14" Opacity="0.65"
+                                           HorizontalAlignment="Center" TextAlignment="Center"
+                                           TextWrapping="Wrap" />
+                                <Grid ColumnSpacing="18" MinHeight="250">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="10" HorizontalAlignment="Left" MaxWidth="340"
+                                                VerticalAlignment="Bottom">
+                                        <Border Width="{Binding Selected.PlayerAPortraitWidth}" Height="224" CornerRadius="16"
+                                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                                HorizontalAlignment="Center"
+                                                Visibility="{Binding Selected.PlayerAPortraitAreaVisibility}">
+                                            <Grid>
+                                                <FontIcon Glyph="&#xE77B;" FontSize="52" Opacity="0.26"
+                                                          Visibility="{Binding Selected.PlayerAPortraitPlaceholderVisibility}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                <Image Source="{Binding Selected.PlayerAPortraitUri}"
+                                                       Stretch="Uniform" Width="{Binding Selected.PlayerAPortraitImageWidth}"
+                                                       Height="224" HorizontalAlignment="Left" />
+                                                <Image Source="{Binding Selected.PlayerASecondPortraitUri}"
+                                                       Visibility="{Binding Selected.PlayerASecondPortraitVisibility}"
+                                                       Stretch="Uniform" Width="142" Height="224"
+                                                       HorizontalAlignment="Right" />
+                                            </Grid>
+                                        </Border>
+                                        <StackPanel Orientation="Horizontal" Spacing="8"
+                                                    HorizontalAlignment="Center">
+                                            <Image Source="{Binding Selected.PlayerAFlagUri}"
+                                                   Visibility="{Binding Selected.PlayerAFlagVisibility}"
+                                                   Width="26" Height="18" Stretch="UniformToFill"
+                                                   VerticalAlignment="Center" />
+                                            <Button Tag="{Binding Selected}" Click="PlayerA_Click"
+                                                    Visibility="{Binding Selected.PlayerHeaderVisibility}"
+                                                    Background="Transparent" BorderThickness="0" Padding="0">
+                                                <TextBlock Text="{Binding Selected.PlayerAWithFlag}"
+                                                           FontSize="18" FontWeight="SemiBold"
+                                                           MaxWidth="310" TextWrapping="NoWrap"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </Button>
+                                            <TextBlock Text="{Binding Selected.PlayerAWithFlag}"
+                                                       Visibility="{Binding Selected.ClubHeaderVisibility}"
+                                                       FontSize="18" FontWeight="SemiBold"
+                                                       MaxWidth="310" TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Grid Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock x:Name="DetailOldScore" FontSize="42" Opacity="0"
+                                                   FontFamily="Segoe UI Variable Display" FontWeight="Bold"
+                                                   HorizontalAlignment="Center" />
+                                        <TextBlock x:Name="DetailScore" Text="{Binding Selected.Score}"
+                                                   FontSize="42" FontFamily="Segoe UI Variable Display"
+                                                   FontWeight="Bold" HorizontalAlignment="Center" />
+                                    </Grid>
+                                    <StackPanel Grid.Column="2" Spacing="10" HorizontalAlignment="Right"
+                                                MaxWidth="340"
+                                                VerticalAlignment="Bottom">
+                                        <Border Width="{Binding Selected.PlayerBPortraitWidth}" Height="224" CornerRadius="16"
+                                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                                HorizontalAlignment="Center"
+                                                Visibility="{Binding Selected.PlayerBPortraitAreaVisibility}">
+                                            <Grid>
+                                                <FontIcon Glyph="&#xE77B;" FontSize="52" Opacity="0.26"
+                                                          Visibility="{Binding Selected.PlayerBPortraitPlaceholderVisibility}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                <Image Source="{Binding Selected.PlayerBPortraitUri}"
+                                                       Stretch="Uniform" Width="{Binding Selected.PlayerBPortraitImageWidth}"
+                                                       Height="224" HorizontalAlignment="Left" />
+                                                <Image Source="{Binding Selected.PlayerBSecondPortraitUri}"
+                                                       Visibility="{Binding Selected.PlayerBSecondPortraitVisibility}"
+                                                       Stretch="Uniform" Width="142" Height="224"
+                                                       HorizontalAlignment="Right" />
+                                            </Grid>
+                                        </Border>
+                                        <StackPanel Orientation="Horizontal" Spacing="8"
+                                                    HorizontalAlignment="Center">
+                                            <Image Source="{Binding Selected.PlayerBFlagUri}"
+                                                   Visibility="{Binding Selected.PlayerBFlagVisibility}"
+                                                   Width="26" Height="18" Stretch="UniformToFill"
+                                                   VerticalAlignment="Center" />
+                                            <Button Tag="{Binding Selected}" Click="PlayerB_Click"
+                                                    Visibility="{Binding Selected.PlayerHeaderVisibility}"
+                                                    Background="Transparent" BorderThickness="0" Padding="0">
+                                                <TextBlock Text="{Binding Selected.PlayerBWithFlag}"
+                                                           FontSize="18" FontWeight="SemiBold"
+                                                           MaxWidth="310" TextWrapping="NoWrap"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           TextAlignment="Right" />
+                                            </Button>
+                                            <TextBlock Text="{Binding Selected.PlayerBWithFlag}"
+                                                       Visibility="{Binding Selected.ClubHeaderVisibility}"
+                                                       FontSize="18" FontWeight="SemiBold"
+                                                       MaxWidth="310" TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="{Binding Selected.Status}" HorizontalAlignment="Center" />
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="{Binding Selected.ScoreSectionTitle}"
+                                               FontSize="18" FontWeight="SemiBold" />
+                                    <ScrollViewer HorizontalScrollMode="Enabled"
+                                                  HorizontalScrollBarVisibility="Auto"
+                                                  VerticalScrollMode="Disabled">
+                                        <ItemsControl ItemsSource="{Binding Selected.SetColumns}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" Spacing="8" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border CornerRadius="10" Padding="12,8" MinWidth="68"
+                                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                                                        <StackPanel Spacing="5" HorizontalAlignment="Center">
+                                                            <TextBlock Text="{Binding Label}" FontSize="11" Opacity="0.65" />
+                                                            <TextBlock Text="{Binding Left}" FontSize="20" FontWeight="SemiBold"
+                                                                       HorizontalAlignment="Center" />
+                                                            <TextBlock Text="{Binding Right}" FontSize="20" FontWeight="SemiBold"
+                                                                       HorizontalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                    <TextBlock Text="{Binding Selected.SetScoreNote}" FontSize="12" Opacity="0.6"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button Content="加入日历" IsEnabled="{Binding Selected.IsUpcoming}"
+                                        Click="CalendarExport_Click" HorizontalAlignment="Right" />
+                            </StackPanel>
+                        </Border>
+                        <ItemsControl ItemsSource="{Binding Selected.TeamGames}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                            CornerRadius="12" Padding="18" Margin="0,0,0,8">
+                                        <StackPanel Spacing="8">
+                                            <Grid ColumnSpacing="12">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Button Content="{Binding PlayerA}" Tag="{Binding}"
+                                                        Click="TeamPlayerA_Click" HorizontalAlignment="Left"
+                                                        FontWeight="SemiBold" Background="Transparent"
+                                                        BorderThickness="0" Padding="0" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Score}"
+                                                           FontSize="20" FontWeight="Bold" />
+                                                <Button Grid.Column="2" Content="{Binding PlayerB}" Tag="{Binding}"
+                                                        Click="TeamPlayerB_Click" HorizontalAlignment="Right"
+                                                        FontWeight="SemiBold" Background="Transparent"
+                                                        BorderThickness="0" Padding="0" />
+                                            </Grid>
+                                            <ScrollViewer HorizontalScrollMode="Enabled"
+                                                          HorizontalScrollBarVisibility="Auto"
+                                                          VerticalScrollMode="Disabled">
+                                                <ItemsControl ItemsSource="{Binding SetColumns}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Orientation="Horizontal" Spacing="6" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border CornerRadius="8" Padding="8,5"
+                                                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                                                                <StackPanel Spacing="3">
+                                                                    <TextBlock Text="{Binding Label}" FontSize="11" Opacity="0.6" />
+                                                                    <TextBlock Text="{Binding Left}" FontWeight="SemiBold" />
+                                                                    <TextBlock Text="{Binding Right}" FontWeight="SemiBold" />
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding Selected.TeamGamesNote}" Opacity="0.6"
+                                   TextWrapping="Wrap" />
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="得分走势" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="仅记录实际观察到的局分；空白区间不代表逐分过程。"
+                                       FontSize="12" Opacity="0.6" />
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                          HorizontalScrollMode="Enabled"
+                                          VerticalScrollMode="Disabled" MaxHeight="240">
+                                <Canvas x:Name="TrendCanvas" Height="210" Width="640"
+                                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                        PointerMoved="TrendCanvas_PointerMoved"
+                                        PointerExited="TrendCanvas_PointerExited" />
+                            </ScrollViewer>
+                            <TextBlock x:Name="TrendHint" Text="暂无可观察的局分" FontSize="12" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+                <StackPanel x:Name="SettingsView" Visibility="Collapsed" Spacing="18">
+                    <TextBlock Text="账号与云端关注" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding CloudStatus}" TextWrapping="Wrap" Opacity="0.7" />
+                    <Button Content="管理账号" Click="Account_Click" HorizontalAlignment="Left" />
+                    <TextBlock Text="外观 · 浅色主题" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="关注比赛提醒" FontSize="20" FontWeight="SemiBold" />
+                    <ToggleSwitch x:Name="StartAlertSwitch" Header="开赛前及开赛时"
+                                  Tag="start" Toggled="AlertOption_Toggled" />
+                    <ToggleSwitch x:Name="ScoreAlertSwitch" Header="大比分变化"
+                                  Tag="score" Toggled="AlertOption_Toggled" />
+                    <ToggleSwitch x:Name="FinalAlertSwitch" Header="比赛结束"
+                                  Tag="final" Toggled="AlertOption_Toggled" />
+                    <TextBlock Text="仅软件运行期间提醒已关注比赛；默认关闭。"
+                               Opacity="0.6" />
+                    <TextBlock Text="网络故障时保留已获取的比赛并标记旧数据；无官方比分时不猜测。"
+                               TextWrapping="Wrap" Opacity="0.65" />
+                </StackPanel>
+                <Grid x:Name="RankingsView" Visibility="Collapsed" RowSpacing="14">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="成年" Tag="SEN" Click="RankingCategory_Click" />
+                        <Button Content="青少年" Tag="YOU" Click="RankingCategory_Click" />
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="1" HorizontalScrollMode="Enabled"
+                                  HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="男单" Tag="MS" Click="RankingEvent_Click" />
+                        <Button Content="女单" Tag="WS" Click="RankingEvent_Click" />
+                        <Button Content="男双组合" Tag="MD" Click="RankingEvent_Click" />
+                        <Button Content="女双组合" Tag="WD" Click="RankingEvent_Click" />
+                        <Button Content="混双组合" Tag="XD" Click="RankingEvent_Click" />
+                        <Button Content="男双个人" Tag="MDI" Click="RankingEvent_Click" />
+                        <Button Content="女双个人" Tag="WDI" Click="RankingEvent_Click" />
+                        <Button Content="混双个人" Tag="XDI" Click="RankingEvent_Click" />
+                    </StackPanel>
+                    </ScrollViewer>
+                    <TextBlock Grid.Row="2" Text="{Binding RankingHealth}" FontSize="12" Opacity="0.65" />
+                    <ListView Grid.Row="3" ItemsSource="{Binding RankingRows}" SelectionMode="None"
+                              ScrollViewer.VerticalScrollMode="Enabled"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                              ContainerContentChanging="RankingContainer_ContentChanging"
+                              HorizontalContentAlignment="Stretch">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                        CornerRadius="10" Padding="16,12" Margin="0,0,0,6">
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="64" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="150" />
+                                            <ColumnDefinition Width="100" />
+                                            <ColumnDefinition Width="70" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Rank}" FontSize="19" FontWeight="Bold" />
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12"
+                                                    VerticalAlignment="Center">
+                                            <Border Width="{Binding AvatarWidth}" Height="{Binding AvatarWidth}"
+                                                    CornerRadius="19"
+                                                    Background="{ThemeResource ControlFillColorSecondaryBrush}">
+                                                <Grid>
+                                                    <FontIcon Glyph="{Binding AvatarGlyph}" FontSize="17"
+                                                              Opacity="{Binding PlaceholderOpacity}"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    <Image Source="{Binding PortraitUri}" Width="38" Height="38"
+                                                           Stretch="UniformToFill" />
+                                                </Grid>
+                                            </Border>
+                                            <Button Tag="{Binding}" Click="RankingPlayer_Click"
+                                                    HorizontalAlignment="Left" Background="Transparent"
+                                                    BorderThickness="0" Padding="0">
+                                                <TextBlock Text="{Binding DisplayName}" FontSize="16"
+                                                           MaxWidth="520" TextTrimming="CharacterEllipsis" />
+                                            </Button>
+                                            <TextBlock Text="{Binding AgeDisplay}" FontSize="11" Opacity="0.55"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7">
+                                            <Image Source="{Binding CountryFlagUri}" Width="23" Height="16"
+                                                   Stretch="UniformToFill" />
+                                            <Image Source="{Binding PartnerCountryFlagUri}"
+                                                   Width="{Binding PartnerFlagWidth}" Height="16"
+                                                   Stretch="UniformToFill" />
+                                            <TextBlock Text="{Binding CountryDisplay}" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="3" Text="{Binding Points}"
+                                                   FontWeight="SemiBold" TextAlignment="Right" />
+                                        <TextBlock Grid.Column="4" Text="{Binding ChangeDisplay}"
+                                                   TextAlignment="Right" Opacity="0.7" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+                <Grid x:Name="DrawsView" Visibility="Collapsed" RowSpacing="14">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox x:Name="DrawEventSelect" ItemsSource="{Binding WttEvents}"
+                                  SelectionChanged="DrawSelection_Changed"
+                                  HorizontalAlignment="Stretch" PlaceholderText="选择赛事">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <ComboBox x:Name="DrawProjectSelect" Grid.Column="1"
+                                  SelectionChanged="DrawSelection_Changed"
+                                  HorizontalAlignment="Stretch" />
+                        <ComboBox x:Name="DrawStageSelect" Grid.Column="2"
+                                  ItemsSource="{Binding WttStages}" SelectionChanged="DrawStage_Changed"
+                                  HorizontalAlignment="Stretch" PlaceholderText="阶段">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate><TextBlock Text="{Binding DisplayName}" /></DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Grid.Column="3" Content="−" Click="DrawZoomOut_Click" />
+                        <Button Grid.Column="4" Content="+" Click="DrawZoomIn_Click" />
+                        <Button Grid.Column="5" Content="适合宽度" Click="DrawFit_Click" />
+                        <TextBlock x:Name="DrawZoomLabel" Grid.Column="6" Text="100%"
+                                   VerticalAlignment="Center" Opacity="0.6" />
+                    </Grid>
+                    <StackPanel Grid.Row="1" Spacing="3">
+                        <TextBlock Text="{Binding DrawStatus}" FontSize="12" Opacity="0.65" />
+                        <TextBlock Text="按轮次排列 · 按住空白处或卡片拖动签表 · 点击卡片查看逐局比分"
+                                   FontSize="11" Opacity="0.55" />
+                    </StackPanel>
+                    <ScrollViewer x:Name="DrawScroller" Grid.Row="2"
+                                  HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto"
+                                  ZoomMode="Enabled" MinZoomFactor="0.35" MaxZoomFactor="2.5"
+                                  ViewChanged="DrawScroller_ViewChanged">
+                        <Canvas x:Name="DrawCanvas" MinWidth="800" MinHeight="260" Background="Transparent" />
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
+        </Grid>
+    </NavigationView>
+</Page>

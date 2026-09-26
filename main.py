@@ -18,6 +18,7 @@ from data_sources.tleague import TLeagueDataSource
 from data_sources.ttbl import TTBLDataSource
 from data_sources.wtt import WTTDataSource
 from services.storage import FavoritesStore, SettingsStore
+from services.cloud_sync import CloudSyncManager
 from services.updater import Updater
 from ui.main_window import MainWindow
 from ui.theme import ThemeManager
@@ -88,6 +89,7 @@ def main() -> int:
 
     settings = SettingsStore()
     favorites = FavoritesStore()
+    cloud = CloudSyncManager(favorites)
     theme = ThemeManager(settings)
     theme.apply()
     if smoke:
@@ -108,18 +110,16 @@ def main() -> int:
         )
     if smoke:
         print("SMOKE: updater created", flush=True)
-    window = MainWindow(updater, theme, favorites, settings=settings)
+    window = MainWindow(updater, theme, favorites, settings=settings, cloud=cloud)
     if icon:
         window.setWindowIcon(QIcon(icon))
     if os.environ.get("TABLE_TENNIS_LIVE_OFFLINE") == "1":
         window.rankings_page.shutdown()
     window.show()
+    cloud.restore()
     updater.start()
     if smoke:
         print("SMOKE: window shown, updater started", flush=True)
-
-    # 系统主题变化时自动跟随（仅在“跟随系统”模式下生效）
-    app.styleHints().colorSchemeChanged.connect(lambda _scheme: theme.follow_system())
 
     # 打包后的自检模式：3 秒后关闭窗口自动退出（会先停掉后台刷新线程）
     if smoke:

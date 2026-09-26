@@ -12,6 +12,9 @@ release/
 *.log
 .env
 .env.*
+/.dotnet-cli/
+/native/**/bin/
+/native/**/obj/
 *.pem
 *.key
 /*_rgb.png

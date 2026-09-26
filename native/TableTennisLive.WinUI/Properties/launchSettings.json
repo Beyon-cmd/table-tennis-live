@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "TableTennisLive.WinUI (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "TableTennisLive.WinUI (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

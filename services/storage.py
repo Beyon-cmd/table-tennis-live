@@ -5,6 +5,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from uuid import UUID
 
 
 def _default_data_dir() -> Path:
@@ -45,15 +46,7 @@ class JsonStore:
 
 class SettingsStore(JsonStore):
     def __init__(self):
-        super().__init__(DATA_DIR / "settings.json", {"theme": "system", "alerts": {}})
-
-    @property
-    def theme(self) -> str:
-        return self._data.get("theme", "system")
-
-    def set_theme(self, mode: str) -> None:
-        self._data["theme"] = mode
-        self.save()
+        super().__init__(DATA_DIR / "settings.json", {"alerts": {}})
 
     def alert_enabled(self, kind: str) -> bool:
         alerts = self._data.get("alerts")
@@ -72,9 +65,63 @@ class SettingsStore(JsonStore):
 class FavoritesStore(JsonStore):
     def __init__(self):
         super().__init__(DATA_DIR / "favorites.json", [])
+        self.account_id: str | None = None
+        self._pending_store: JsonStore | None = None
 
     def _ids(self) -> set[str]:
-        return set(self._data if isinstance(self._data, list) else [])
+        return {value for value in self._data if isinstance(value, str)}
+
+    def ids(self) -> set[str]:
+        return self._ids()
+
+    def activate_account(self, user_id: str | None) -> None:
+        """Keep signed-out and per-account favorites in separate local files."""
+        if user_id is None:
+            self.account_id = None
+            self.path = DATA_DIR / "favorites.json"
+            self._pending_store = None
+        else:
+            safe_id = str(UUID(user_id))
+            self.account_id = safe_id
+            self.path = DATA_DIR / f"favorites-{safe_id}.json"
+            first_login = not self.path.exists()
+            anonymous_ids = JsonStore(DATA_DIR / "favorites.json", [])._data if first_login else []
+            self._pending_store = JsonStore(DATA_DIR / f"favorites-pending-{safe_id}.json", {})
+        self._data = []
+        self.load()
+        if user_id is not None and first_login:
+            for match_id in anonymous_ids:
+                if isinstance(match_id, str):
+                    self._pending_store._data[match_id] = True
+            self._data = sorted(self._ids() | {x for x in anonymous_ids if isinstance(x, str)})
+            self.save()
+            self._pending_store.save()
+
+    def pending_operations(self) -> dict[str, bool]:
+        if self._pending_store is None:
+            return {}
+        return {key: value for key, value in self._pending_store._data.items()
+                if isinstance(key, str) and isinstance(value, bool)}
+
+    def acknowledge(self, sent: dict[str, bool]) -> None:
+        if self._pending_store is None:
+            return
+        for key, value in sent.items():
+            if self._pending_store._data.get(key) == value:
+                self._pending_store._data.pop(key, None)
+        self._pending_store.save()
+
+    def apply_remote(self, remote_ids: set[str]) -> None:
+        if self.account_id is None:
+            return
+        ids = set(remote_ids)
+        for key, enabled in self.pending_operations().items():
+            if enabled:
+                ids.add(key)
+            else:
+                ids.discard(key)
+        self._data = sorted(ids)
+        self.save()
 
     def contains(self, match_id: str) -> bool:
         return match_id in self._ids()
@@ -87,4 +134,7 @@ class FavoritesStore(JsonStore):
             ids.add(match_id)
         self._data = sorted(ids)
         self.save()
+        if self._pending_store is not None:
+            self._pending_store._data[match_id] = match_id in ids
+            self._pending_store.save()
         return match_id in ids

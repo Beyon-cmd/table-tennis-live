@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from string import Template
 
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
@@ -28,27 +28,6 @@ LIGHT = {
     "FINAL_TEXT": "#616161",
     "INPUT": "#FFFFFF",
     "SHADOW": QColor(15, 20, 25, 22),
-}
-
-DARK = {
-    "WINDOW": "#101827",
-    "WINDOW_ALT": "#172236",
-    "CARD": "#1B293E",
-    "CARD_HOVER": "#22344D",
-    "SIDEBAR": "#131E30",
-    "BORDER": "#2C3B52",
-    "HOVER": "#343434",
-    "SELECTED": "#1F3A4C",
-    "TEXT": "#F5F5F5",
-    "TEXT_SEC": "#ADADAD",
-    "ACCENT": "#4CC2FF",
-    "ACCENT_SOFT": "#1F3A4C",
-    "LIVE_BG": "#402325",
-    "LIVE_TEXT": "#FF7A70",
-    "FINAL_BG": "#383838",
-    "FINAL_TEXT": "#9E9E9E",
-    "INPUT": "#2B2B2B",
-    "SHADOW": QColor(0, 0, 0, 70),
 }
 
 QSS = """
@@ -90,6 +69,17 @@ QPushButton#TopToolButton::menu-indicator { image: none; width: 0px; }
 QPushButton#TopRefreshButton { background: $CARD; color: $ACCENT; border: 1px solid $BORDER;
     border-radius: 10px; min-width: 40px; min-height: 40px; padding: 0px; font-size: 21px; }
 QPushButton#TopRefreshButton:hover { background: $ACCENT_SOFT; border-color: $ACCENT; }
+QPushButton#AccountSidebarButton { background: $ACCENT_SOFT; color: $ACCENT; border: none;
+    border-radius: 10px; padding: 10px 12px; text-align: left; font-weight: 600; }
+QPushButton#AccountSidebarButton:hover { background: $SELECTED; }
+QLabel#AccountTitle { color: $TEXT; font-size: 21px; font-weight: 700; }
+QLabel#AccountNote { color: $TEXT_SEC; font-size: 12px; }
+QPushButton#AccountPrimary { background: $ACCENT; color: white; border: none;
+    border-radius: 8px; padding: 9px 14px; font-weight: 600; }
+QPushButton#AccountPrimary:hover { background: $TEXT; }
+QPushButton#AccountSecondary { background: $CARD; color: $TEXT; border: 1px solid $BORDER;
+    border-radius: 8px; padding: 9px 14px; }
+QPushButton#AccountSecondary:hover { background: $HOVER; }
 QWidget#MiniScoreWindow { background: $CARD; border: 1px solid $BORDER; border-radius: 12px; }
 QLabel#MiniTitle { color: $TEXT; font-size: 16px; font-weight: 700; }
 QLabel#MiniMeta { color: $TEXT_SEC; font-size: 11px; }
@@ -185,49 +175,25 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }
 
 class ThemeManager(QObject):
     changed = Signal()
-    MODES = ["light", "dark", "system"]
-    MODE_LABELS = {"light": "☀️ 浅色", "dark": "🌙 深色", "system": "🖥️ 跟随系统"}
 
     def __init__(self, settings: SettingsStore):
         super().__init__()
         self._settings = settings
-        self.mode = settings.theme if settings.theme in self.MODES else "system"
-        self._dark = False
+        self.mode = "light"
 
     def is_dark(self) -> bool:
-        return self._dark
+        return False
 
     def colors(self) -> dict:
-        return DARK if self._dark else LIGHT
-
-    def mode_label(self) -> str:
-        return self.MODE_LABELS[self.mode]
-
-    def cycle(self) -> None:
-        idx = self.MODES.index(self.mode)
-        self.mode = self.MODES[(idx + 1) % len(self.MODES)]
-        self._settings.set_theme(self.mode)
-        self.apply()
-        self.changed.emit()
+        return LIGHT
 
     def apply(self) -> None:
         app = QApplication.instance()
         if app is None:
             return
-        self._dark = self._resolve_dark()
         colors = self.colors()
         app.setPalette(_build_palette(colors))
         app.setStyleSheet(_build_stylesheet(colors))
-
-    def follow_system(self) -> None:
-        if self.mode == "system":
-            self.apply()
-
-    def _resolve_dark(self) -> bool:
-        if self.mode != "system":
-            return self.mode == "dark"
-        hints = QApplication.styleHints()
-        return hints.colorScheme() == Qt.ColorScheme.Dark
 
 
 def _build_stylesheet(colors: dict) -> str:
